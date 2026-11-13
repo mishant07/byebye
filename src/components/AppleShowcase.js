@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Sparkles, ArrowRight, ShieldCheck, Cpu, Layers } from 'lucide-react';
 
@@ -74,12 +74,10 @@ function createFootballTexture() {
     const seamVerts = pentVerts(cx, cy, R + 8, rot);
     const patchVerts = pentVerts(cx, cy, R, rot);
 
-    // Seam border
     ctx.fillStyle = '#CCCCCC';
     drawPath(seamVerts);
     ctx.fill();
 
-    // Deep rich black pentagon
     ctx.fillStyle = '#0E0E10';
     drawPath(patchVerts);
     ctx.fill();
@@ -97,7 +95,6 @@ function createFootballTexture() {
     }
   });
 
-  // Hexagonal connecting seam lines
   ctx.strokeStyle = '#D0CCC4';
   ctx.lineWidth = 2.2;
   ctx.setLineDash([5, 4]);
@@ -129,7 +126,7 @@ export default function AppleShowcase({ onPhaseChange }) {
   const containerRef = useRef(null);
   const canvasMountRef = useRef(null);
 
-  // DOM Refs for ZERO-RERENDER direct 60fps animations
+  // Absolute DOM Refs for zero-rerender GPU transformations
   const step1Ref = useRef(null);
   const step2Ref = useRef(null);
   const step3Ref = useRef(null);
@@ -148,7 +145,6 @@ export default function AppleShowcase({ onPhaseChange }) {
   const isVisibleRef = useRef(true);
   const prefersReducedRef = useRef(false);
 
-  // Detect reduced motion once
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     prefersReducedRef.current = mq.matches;
@@ -159,7 +155,7 @@ export default function AppleShowcase({ onPhaseChange }) {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Optimized Scroll Listener (No forced reflow, throttled step report)
+  // Reliable scroll listener tracking container progress
   useEffect(() => {
     let ticking = false;
 
@@ -167,14 +163,12 @@ export default function AppleShowcase({ onPhaseChange }) {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           if (!containerRef.current) return;
-          const containerTop = containerRef.current.offsetTop;
-          const containerHeight = containerRef.current.offsetHeight;
-          const totalScroll = containerHeight - window.innerHeight;
-          const scrolled = window.scrollY - containerTop;
+          const rect = containerRef.current.getBoundingClientRect();
+          const totalScroll = containerRef.current.offsetHeight - window.innerHeight;
+          const scrolled = -rect.top;
           const p = Math.min(Math.max(scrolled / (totalScroll || 1), 0), 1);
           targetProgress.current = p;
 
-          // Only report phase change when the integer step actually changes
           let step = 1;
           if (p > 0.72) step = 4;
           else if (p > 0.46) step = 3;
@@ -196,13 +190,13 @@ export default function AppleShowcase({ onPhaseChange }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [onPhaseChange]);
 
-  // Pause render loop when off-screen
+  // Keep scene alive while in view
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         isVisibleRef.current = entry.isIntersecting;
       },
-      { threshold: 0.05 }
+      { threshold: 0.01 }
     );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -233,24 +227,24 @@ export default function AppleShowcase({ onPhaseChange }) {
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // ── STUDIO LIGHTING ──────────────────────────────────────────
-    const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.35);
+    // Studio Lighting
+    const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.4);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xFFFDF0, 1.15);
+    const keyLight = new THREE.DirectionalLight(0xFFFDF0, 1.2);
     keyLight.position.set(-6, 8, 8);
     scene.add(keyLight);
 
-    const blueRim = new THREE.DirectionalLight(0x4C7DFF, 2.0);
+    const blueRim = new THREE.DirectionalLight(0x4C7DFF, 2.2);
     blueRim.position.set(6, -3, -5);
     scene.add(blueRim);
 
-    const goldRim = new THREE.DirectionalLight(0xD6B36A, 1.8);
+    const goldRim = new THREE.DirectionalLight(0xD6B36A, 1.9);
     goldRim.position.set(-6, -4, -5);
     scene.add(goldRim);
 
-    // ── 3D FOOTBALL MODEL ────────────────────────────────────────
-    const ballRadius = 2.5;
+    // 3D Football Model
+    const ballRadius = 2.4;
     const geometry = new THREE.SphereGeometry(ballRadius, 64, 64);
 
     const texture = new THREE.CanvasTexture(createFootballTexture());
@@ -259,7 +253,7 @@ export default function AppleShowcase({ onPhaseChange }) {
     const material = new THREE.MeshPhongMaterial({
       map: texture,
       shininess: 24,
-      specular: new THREE.Color(0x2A2A2A),
+      specular: new THREE.Color(0x282828),
     });
 
     const ballMesh = new THREE.Mesh(geometry, material);
@@ -267,7 +261,7 @@ export default function AppleShowcase({ onPhaseChange }) {
     scene.add(ballMesh);
     ballMeshRef.current = ballMesh;
 
-    // ── CONTACT SHADOW ───────────────────────────────────────────
+    // Contact Shadow
     const shadowGeo = new THREE.PlaneGeometry(6.5, 6.5);
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 128;
@@ -303,7 +297,7 @@ export default function AppleShowcase({ onPhaseChange }) {
 
     window.addEventListener('resize', handleResize);
 
-    // ── 60/120 FPS NATIVE RENDER & DIRECT DOM TRANSFORM LOOP ─────
+    // 60/120 FPS Native Render Loop
     let rafId;
     const clock = new THREE.Clock();
 
@@ -313,11 +307,11 @@ export default function AppleShowcase({ onPhaseChange }) {
 
       const elapsedTime = clock.getElapsedTime();
 
-      // Silky momentum lerp (0.10 factor = crisp and responsive)
-      currentProgress.current += (targetProgress.current - currentProgress.current) * 0.10;
+      // Smooth lerp
+      currentProgress.current += (targetProgress.current - currentProgress.current) * 0.12;
       const p = currentProgress.current;
 
-      // 1. UPDATE THREE.JS 3D OBJECT (NO REACT RE-RENDER)
+      // 1. UPDATE 3D FOOTBALL & CAMERA
       if (ballMesh && camera && shadowMesh) {
         const ambientFloat = Math.sin(elapsedTime * 1.4) * 0.08;
 
@@ -327,52 +321,56 @@ export default function AppleShowcase({ onPhaseChange }) {
           camera.position.set(0, 0, 13);
         } else {
           if (p <= 0.25) {
+            // STEP 1: Centered in lower half, headline above it
             const t1 = p / 0.25;
-            const scale = 1.0 + t1 * 0.2;
+            const scale = 1.0 + t1 * 0.15;
             ballMesh.scale.set(scale, scale, scale);
             ballMesh.position.set(0, -0.6 + ambientFloat, 0);
             ballMesh.rotation.y = t1 * 0.6;
-            ballMesh.rotation.x = 0.15;
+            ballMesh.rotation.x = 0.12;
             camera.position.set(0, 0, 13.0 - t1 * 1.0);
             shadowMesh.position.set(0, -0.6 - ballRadius * scale - 0.15, 0);
           } else if (p <= 0.50) {
+            // STEP 2: Moves right (x: 3.2), scales up to 1.55x, rotates
             const t2 = (p - 0.25) / 0.25;
-            const scale = 1.2 + t2 * 0.45;
-            const posX = t2 * 3.4;
+            const scale = 1.15 + t2 * 0.40;
+            const posX = t2 * 3.2;
             ballMesh.scale.set(scale, scale, scale);
-            ballMesh.position.set(posX, 0.2 + ambientFloat, 0);
+            ballMesh.position.set(posX, 0.1 + ambientFloat, 0);
             ballMesh.rotation.y = 0.6 + t2 * 1.4;
-            ballMesh.rotation.x = 0.2 + t2 * 0.25;
-            camera.position.set(0, 0, 12.0 - t2 * 1.5);
-            shadowMesh.position.set(posX, -ballRadius * scale - 0.1, 0);
+            ballMesh.rotation.x = 0.15 + t2 * 0.2;
+            camera.position.set(0, 0, 12.0 - t2 * 1.2);
+            shadowMesh.position.set(posX, 0.1 - ballRadius * scale - 0.15, 0);
           } else if (p <= 0.75) {
+            // STEP 3: Stays on right side, orbits, leaves left clear for bullets
             const t3 = (p - 0.50) / 0.25;
-            const scale = 1.65 - t3 * 0.35;
-            const posX = 3.4 + t3 * 0.4;
+            const scale = 1.55 - t3 * 0.3;
+            const posX = 3.2 + t3 * 0.3;
             ballMesh.scale.set(scale, scale, scale);
-            ballMesh.position.set(posX, 0.2 + ambientFloat, 0);
+            ballMesh.position.set(posX, 0.1 + ambientFloat, 0);
             ballMesh.rotation.y = 2.0 + t3 * 1.4;
-            ballMesh.rotation.x = 0.45 - t3 * 0.3;
-            camera.position.set(0, 0, 10.5 + t3 * 1.8);
-            shadowMesh.position.set(posX, -ballRadius * scale - 0.1, 0);
+            ballMesh.rotation.x = 0.35 - t3 * 0.25;
+            camera.position.set(0, 0, 10.8 + t3 * 1.8);
+            shadowMesh.position.set(posX, 0.1 - ballRadius * scale - 0.15, 0);
           } else {
+            // STEP 4: Pulls back & shrinks to corner for transition
             const t4 = (p - 0.75) / 0.25;
-            const scale = 1.3 - t4 * 0.75;
-            const posX = 3.8 + t4 * 3.0;
-            const posY = 0.2 - t4 * 2.8;
+            const scale = 1.25 - t4 * 0.7;
+            const posX = 3.5 + t4 * 3.0;
+            const posY = 0.1 - t4 * 2.5;
             ballMesh.scale.set(scale, scale, scale);
-            ballMesh.position.set(posX, posY, -t4 * 2.5);
+            ballMesh.position.set(posX, posY, -t4 * 2.0);
             ballMesh.rotation.y = 3.4 + t4 * 1.0;
-            camera.position.set(0, 0, 12.3 + t4 * 2.0);
-            shadowMesh.position.set(posX, posY - ballRadius * scale - 0.1, -t4 * 2.5);
+            camera.position.set(0, 0, 12.6 + t4 * 2.0);
+            shadowMesh.position.set(posX, posY - ballRadius * scale - 0.15, -t4 * 2.0);
           }
         }
 
         renderer.render(scene, camera);
       }
 
-      // 2. DIRECT DOM MANIPULATION FOR TEXT SLIDES (ZERO REACT OVERHEAD)
-      // Step 1: 0.00 -> 0.22
+      // 2. DIRECT GPU COMPOSITOR TRANSFORMS FOR TEXT SLIDES
+      // Step 1: 0.00 -> 0.22 (Top Center)
       if (step1Ref.current) {
         let op1 = 1;
         let y1 = 0;
@@ -382,21 +380,21 @@ export default function AppleShowcase({ onPhaseChange }) {
           y1 = -f * 32;
         }
         step1Ref.current.style.opacity = op1.toFixed(3);
-        step1Ref.current.style.transform = `translate3d(0, ${y1.toFixed(1)}px, 0)`;
+        step1Ref.current.style.transform = `translate3d(-50%, ${y1.toFixed(1)}px, 0)`;
         step1Ref.current.style.pointerEvents = op1 > 0.3 ? 'auto' : 'none';
       }
 
-      // Step 2: 0.22 -> 0.48
+      // Step 2: 0.20 -> 0.48 (Left Side Card)
       if (step2Ref.current) {
         let op2 = 0;
         let x2 = -28;
-        if (p >= 0.20 && p <= 0.48) {
+        if (p >= 0.18 && p <= 0.48) {
           if (p < 0.26) {
-            const f = (p - 0.20) / 0.06;
+            const f = (p - 0.18) / 0.08;
             op2 = f;
             x2 = (1 - f) * -28;
-          } else if (p > 0.42) {
-            const f = (p - 0.42) / 0.06;
+          } else if (p > 0.40) {
+            const f = (p - 0.40) / 0.08;
             op2 = 1 - f;
             x2 = -f * 28;
           } else {
@@ -405,21 +403,21 @@ export default function AppleShowcase({ onPhaseChange }) {
           }
         }
         step2Ref.current.style.opacity = op2.toFixed(3);
-        step2Ref.current.style.transform = `translate3d(${x2.toFixed(1)}px, 0, 0)`;
+        step2Ref.current.style.transform = `translate3d(${x2.toFixed(1)}px, -50%, 0)`;
         step2Ref.current.style.pointerEvents = op2 > 0.3 ? 'auto' : 'none';
       }
 
-      // Step 3: 0.48 -> 0.74
+      // Step 3: 0.46 -> 0.74 (Left Side Bullets)
       if (step3Ref.current) {
         let op3 = 0;
         let x3 = -28;
-        if (p >= 0.46 && p <= 0.74) {
+        if (p >= 0.44 && p <= 0.74) {
           if (p < 0.52) {
-            const f = (p - 0.46) / 0.06;
+            const f = (p - 0.44) / 0.08;
             op3 = f;
             x3 = (1 - f) * -28;
-          } else if (p > 0.68) {
-            const f = (p - 0.68) / 0.06;
+          } else if (p > 0.66) {
+            const f = (p - 0.66) / 0.08;
             op3 = 1 - f;
             x3 = -f * 28;
           } else {
@@ -428,25 +426,25 @@ export default function AppleShowcase({ onPhaseChange }) {
           }
         }
         step3Ref.current.style.opacity = op3.toFixed(3);
-        step3Ref.current.style.transform = `translate3d(${x3.toFixed(1)}px, 0, 0)`;
+        step3Ref.current.style.transform = `translate3d(${x3.toFixed(1)}px, -50%, 0)`;
         step3Ref.current.style.pointerEvents = op3 > 0.3 ? 'auto' : 'none';
       }
 
-      // Step 4: 0.74 -> 1.00
+      // Step 4: 0.72 -> 1.00 (Transition Card)
       if (step4Ref.current) {
         let op4 = 0;
         let y4 = 28;
-        if (p >= 0.72) {
-          const f = Math.min((p - 0.72) / 0.08, 1);
+        if (p >= 0.70) {
+          const f = Math.min((p - 0.70) / 0.08, 1);
           op4 = f;
           y4 = (1 - f) * 28;
         }
         step4Ref.current.style.opacity = op4.toFixed(3);
-        step4Ref.current.style.transform = `translate3d(0, ${y4.toFixed(1)}px, 0)`;
+        step4Ref.current.style.transform = `translate3d(0, calc(-50% + ${y4.toFixed(1)}px), 0)`;
         step4Ref.current.style.pointerEvents = op4 > 0.3 ? 'auto' : 'none';
       }
 
-      // Progress dots indicator
+      // Progress dots
       const activeIdx = p > 0.72 ? 3 : p > 0.46 ? 2 : p > 0.20 ? 1 : 0;
       dotsRef.current.forEach((dot, idx) => {
         if (!dot) return;
@@ -484,7 +482,7 @@ export default function AppleShowcase({ onPhaseChange }) {
       id="product-showcase"
       aria-label="Interactive 3D Product Showcase"
     >
-      {/* Pinned Sticky Stage (100vh) */}
+      {/* Pinned Sticky Stage (100vh) — Works seamlessly now that overflow-x-hidden is removed from parents */}
       <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
         
         {/* Stage Vignette */}
@@ -506,16 +504,16 @@ export default function AppleShowcase({ onPhaseChange }) {
         {/* WebGL Canvas Mount */}
         <div ref={canvasMountRef} className="absolute inset-0 z-0 pointer-events-none" />
 
-        {/* ── HTML TEXT OVERLAYS: GPU Accelerated Direct Styles ── */}
-        <div className="relative z-20 w-full max-w-7xl mx-auto px-6 lg:px-12 pointer-events-none h-full flex flex-col justify-between py-24">
+        {/* ── ABSOLUTELY PINNED TEXT OVERLAYS: Positioned in Dedicated Screen Halves ── */}
+        <div className="absolute inset-0 z-20 pointer-events-none max-w-7xl mx-auto px-6 lg:px-12">
           
-          {/* STEP 1 TEXT (Upper Half) */}
+          {/* STEP 1: Upper-Center Card (Ball is in Lower Half) */}
           <div
             ref={step1Ref}
             style={{ willChange: 'transform, opacity' }}
-            className="flex flex-col items-center text-center max-w-3xl mx-auto pt-6 sm:pt-10 transition-none"
+            className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 flex flex-col items-center text-center transition-none"
           >
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/85 backdrop-blur-xl border border-white/12 shadow-2xl space-y-3">
+            <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-3 w-full">
               <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-wider text-gold">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Engineered For Precision</span>
@@ -533,11 +531,11 @@ export default function AppleShowcase({ onPhaseChange }) {
             </div>
           </div>
 
-          {/* STEP 2 TEXT (Left Half) */}
+          {/* STEP 2: Left-Side Card (Ball is on Right Side) */}
           <div
             ref={step2Ref}
             style={{ willChange: 'transform, opacity', opacity: 0 }}
-            className="my-auto max-w-lg transition-none"
+            className="absolute top-1/2 -translate-y-1/2 left-6 lg:left-12 max-w-lg w-full transition-none pr-4"
           >
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-4">
               <span className="text-xs font-bold uppercase tracking-widest text-gold font-mono">
@@ -559,11 +557,11 @@ export default function AppleShowcase({ onPhaseChange }) {
             </div>
           </div>
 
-          {/* STEP 3 TEXT (Left Half) */}
+          {/* STEP 3: Left-Side Bullets (Ball is on Right Side) */}
           <div
             ref={step3Ref}
             style={{ willChange: 'transform, opacity', opacity: 0 }}
-            className="my-auto max-w-lg transition-none"
+            className="absolute top-1/2 -translate-y-1/2 left-6 lg:left-12 max-w-lg w-full transition-none pr-4"
           >
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-5">
               <div className="space-y-1">
@@ -610,11 +608,11 @@ export default function AppleShowcase({ onPhaseChange }) {
             </div>
           </div>
 
-          {/* STEP 4 TEXT (Transition to Projects) */}
+          {/* STEP 4: Transition Card */}
           <div
             ref={step4Ref}
             style={{ willChange: 'transform, opacity', opacity: 0 }}
-            className="my-auto max-w-lg transition-none"
+            className="absolute top-1/2 -translate-y-1/2 left-6 lg:left-12 max-w-lg w-full transition-none pr-4"
           >
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-4">
               <span className="text-xs font-bold uppercase tracking-widest text-gold font-mono">

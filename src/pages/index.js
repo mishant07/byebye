@@ -65,7 +65,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.svg" />
       </Head>
 
-      <div className="relative min-h-screen text-charcoal dark:text-cream selection:bg-gold/30 selection:text-white transition-colors duration-400 overflow-x-hidden font-sans">
+      <div className="relative min-h-screen text-charcoal dark:text-cream selection:bg-gold/30 selection:text-white transition-colors duration-400 overflow-x-clip font-sans">
         
         {/* Top Scroll Indicator */}
         <ScrollProgress />
