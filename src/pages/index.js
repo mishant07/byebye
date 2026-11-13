@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import Head from 'next/head';
-import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
-import AppleProductBar from '@/components/AppleProductBar';
 import ScrollProgress from '@/components/ScrollProgress';
 import BackgroundDepth from '@/components/BackgroundDepth';
 import Hero from '@/components/Hero';
@@ -19,40 +17,8 @@ import Contact from '@/components/Contact';
 import Footer from '@/components/Footer';
 import { useTheme } from './_app';
 
-// Lazy-load Apple-style Scroll-Driven Product Showcase (SSR disabled for Three.js WebGL canvas)
-const AppleShowcase = dynamic(() => import('@/components/AppleShowcase'), {
-  ssr: false,
-});
-
 export default function Home() {
   const { theme, mounted } = useTheme();
-  const [showcaseStep, setShowcaseStep] = useState(1);
-  const [inShowcase, setInShowcase] = useState(true);
-
-  // Switch between Apple Product Bar (during showcase) and Main Navbar (during portfolio)
-  useEffect(() => {
-    let ticking = false;
-
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const showcaseHeight = window.innerHeight * 3.2;
-          const isStillIn = window.scrollY < showcaseHeight;
-          setInShowcase((prev) => (prev !== isStillIn ? isStillIn : prev));
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handlePhaseChange = useCallback((step) => {
-    setShowcaseStep((prev) => (prev !== step ? step : prev));
-  }, []);
 
   return (
     <>
@@ -60,7 +26,7 @@ export default function Home() {
         <title>Mishant Gautam | Full-Stack Developer & Software Engineer</title>
         <meta
           name="description"
-          content="Apple-inspired scroll-driven developer showcase and engineering portfolio of Mishant Gautam — Full-stack developer & AI systems engineer at MAIT (Delhi)."
+          content="Portfolio of Mishant Gautam — Full-Stack Developer & Software Engineer at MAIT Delhi. Bernabéu Night design with Real Madrid inspiration."
         />
         <link rel="icon" href="/favicon.svg" />
       </Head>
@@ -73,20 +39,12 @@ export default function Home() {
         {/* Global Cinematic Background Atmosphere */}
         {mounted && <BackgroundDepth theme={theme} />}
 
-        {/* Apple-Style Centered Glass Product Bar (Active during showcase, zero clash) */}
-        <AppleProductBar currentStep={showcaseStep} inShowcase={inShowcase} />
+        {/* Sleek Floating Glass Navigation Bar */}
+        <Navbar />
 
-        {/* Main Navigation Bar (Smoothly active when scrolled into portfolio, zero clash) */}
-        {!inShowcase && <Navbar />}
-
-        {/* ── Apple-Style Scroll-Driven Product Showcase Section ── */}
-        {mounted && (
-          <AppleShowcase onPhaseChange={handlePhaseChange} />
-        )}
-
-        {/* ── Core Portfolio Sections ── */}
+        {/* ── Main Portfolio Sections ── */}
         <main className="relative z-10">
-          {/* Detailed Hero Section with 3D Profile Card & Matchday Status */}
+          {/* Hero Section with 3D Profile Card & Matchday Status */}
           <Hero />
 
           {/* Football Legends Infinite Ticker */}
