@@ -5,7 +5,7 @@ import { Sparkles, ArrowRight, ShieldCheck, Cpu, Layers } from 'lucide-react';
 
 /**
  * Procedural Telstar Football Texture (2048x1024)
- * High-contrast: Deep rich black pentagons, crisp white leather panels, real stitching.
+ * High contrast: Deep rich black pentagons, crisp white leather panels, real stitching.
  */
 function createFootballTexture() {
   const W = 2048, H = 1024;
@@ -79,7 +79,7 @@ function createFootballTexture() {
     drawPath(seamVerts);
     ctx.fill();
 
-    // Deep rich black pentagon (never washed out)
+    // Deep rich black pentagon
     ctx.fillStyle = '#0E0E10';
     drawPath(patchVerts);
     ctx.fill();
@@ -128,12 +128,17 @@ function createFootballTexture() {
 export default function AppleShowcase({ onPhaseChange }) {
   const containerRef = useRef(null);
   const canvasMountRef = useRef(null);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [prefersReduced, setPrefersReduced] = useState(false);
+
+  // DOM Refs for ZERO-RERENDER direct 60fps animations
+  const step1Ref = useRef(null);
+  const step2Ref = useRef(null);
+  const step3Ref = useRef(null);
+  const step4Ref = useRef(null);
+  const dotsRef = useRef([]);
 
   const targetProgress = useRef(0);
   const currentProgress = useRef(0);
+  const lastReportedStep = useRef(1);
 
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
@@ -141,33 +146,49 @@ export default function AppleShowcase({ onPhaseChange }) {
   const ballMeshRef = useRef(null);
   const shadowMeshRef = useRef(null);
   const isVisibleRef = useRef(true);
+  const prefersReducedRef = useRef(false);
 
-  // Detect reduced motion
+  // Detect reduced motion once
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReduced(mq.matches);
-    const handler = (e) => setPrefersReduced(e.matches);
+    prefersReducedRef.current = mq.matches;
+    const handler = (e) => {
+      prefersReducedRef.current = e.matches;
+    };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Track scroll progress through container [0, 1]
+  // Optimized Scroll Listener (No forced reflow, throttled step report)
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const totalScroll = containerRef.current.offsetHeight - window.innerHeight;
-      const current = -rect.top;
-      const p = Math.min(Math.max(current / (totalScroll || 1), 0), 1);
-      targetProgress.current = p;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (!containerRef.current) return;
+          const containerTop = containerRef.current.offsetTop;
+          const containerHeight = containerRef.current.offsetHeight;
+          const totalScroll = containerHeight - window.innerHeight;
+          const scrolled = window.scrollY - containerTop;
+          const p = Math.min(Math.max(scrolled / (totalScroll || 1), 0), 1);
+          targetProgress.current = p;
 
-      let step = 1;
-      if (p > 0.72) step = 4;
-      else if (p > 0.46) step = 3;
-      else if (p > 0.22) step = 2;
+          // Only report phase change when the integer step actually changes
+          let step = 1;
+          if (p > 0.72) step = 4;
+          else if (p > 0.46) step = 3;
+          else if (p > 0.20) step = 2;
 
-      setCurrentStep(step);
-      if (onPhaseChange) onPhaseChange(step);
+          if (step !== lastReportedStep.current) {
+            lastReportedStep.current = step;
+            if (onPhaseChange) onPhaseChange(step);
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -198,7 +219,6 @@ export default function AppleShowcase({ onPhaseChange }) {
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Camera with comfortable field of view
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     camera.position.set(0, 0, 13);
     cameraRef.current = camera;
@@ -213,27 +233,23 @@ export default function AppleShowcase({ onPhaseChange }) {
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // ── STUDIO LIGHTING (Cinematic Darkroom Contrast) ────────────
-    // Lower ambient light so dark pentagons stay deep black
+    // ── STUDIO LIGHTING ──────────────────────────────────────────
     const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.35);
     scene.add(ambientLight);
 
-    // Key Light from top-left
-    const keyLight = new THREE.DirectionalLight(0xFFFDF0, 1.1);
+    const keyLight = new THREE.DirectionalLight(0xFFFDF0, 1.15);
     keyLight.position.set(-6, 8, 8);
     scene.add(keyLight);
 
-    // Cool Electric Blue Rim Light (Right curvature)
-    const blueRim = new THREE.DirectionalLight(0x4C7DFF, 1.9);
+    const blueRim = new THREE.DirectionalLight(0x4C7DFF, 2.0);
     blueRim.position.set(6, -3, -5);
     scene.add(blueRim);
 
-    // Champagne Gold Rim Light (Opposite curvature)
-    const goldRim = new THREE.DirectionalLight(0xD6B36A, 1.7);
+    const goldRim = new THREE.DirectionalLight(0xD6B36A, 1.8);
     goldRim.position.set(-6, -4, -5);
     scene.add(goldRim);
 
-    // ── 3D FOOTBALL MODEL (Sleek Product Proportions: Radius 2.5 vs former 3.4) ──
+    // ── 3D FOOTBALL MODEL ────────────────────────────────────────
     const ballRadius = 2.5;
     const geometry = new THREE.SphereGeometry(ballRadius, 64, 64);
 
@@ -242,12 +258,11 @@ export default function AppleShowcase({ onPhaseChange }) {
 
     const material = new THREE.MeshPhongMaterial({
       map: texture,
-      shininess: 22,
+      shininess: 24,
       specular: new THREE.Color(0x2A2A2A),
     });
 
     const ballMesh = new THREE.Mesh(geometry, material);
-    // Initial position: centered in the lower-middle half so text never collides!
     ballMesh.position.set(0, -0.6, 0);
     scene.add(ballMesh);
     ballMeshRef.current = ballMesh;
@@ -288,6 +303,7 @@ export default function AppleShowcase({ onPhaseChange }) {
 
     window.addEventListener('resize', handleResize);
 
+    // ── 60/120 FPS NATIVE RENDER & DIRECT DOM TRANSFORM LOOP ─────
     let rafId;
     const clock = new THREE.Clock();
 
@@ -297,23 +313,20 @@ export default function AppleShowcase({ onPhaseChange }) {
 
       const elapsedTime = clock.getElapsedTime();
 
-      // Smooth scrub lerp
-      currentProgress.current += (targetProgress.current - currentProgress.current) * 0.085;
+      // Silky momentum lerp (0.10 factor = crisp and responsive)
+      currentProgress.current += (targetProgress.current - currentProgress.current) * 0.10;
       const p = currentProgress.current;
-      setScrollProgress(p);
 
+      // 1. UPDATE THREE.JS 3D OBJECT (NO REACT RE-RENDER)
       if (ballMesh && camera && shadowMesh) {
         const ambientFloat = Math.sin(elapsedTime * 1.4) * 0.08;
 
-        if (prefersReduced) {
+        if (prefersReducedRef.current) {
           ballMesh.position.set(0, -0.6 + ambientFloat, 0);
           ballMesh.rotation.y = 0.5;
           camera.position.set(0, 0, 13);
         } else {
-          // 4-STEP SCRUB SEQUENCE WITH GUARANTEED ZERO-TEXT-OVERLAP:
-
           if (p <= 0.25) {
-            // STEP 1: Ball sits gracefully in lower-center area, headline sits cleanly in upper area
             const t1 = p / 0.25;
             const scale = 1.0 + t1 * 0.2;
             ballMesh.scale.set(scale, scale, scale);
@@ -323,10 +336,9 @@ export default function AppleShowcase({ onPhaseChange }) {
             camera.position.set(0, 0, 13.0 - t1 * 1.0);
             shadowMesh.position.set(0, -0.6 - ballRadius * scale - 0.15, 0);
           } else if (p <= 0.50) {
-            // STEP 2: Ball moves to RIGHT, text reveals on LEFT
             const t2 = (p - 0.25) / 0.25;
-            const scale = 1.2 + t2 * 0.45; // Zooms up to 1.65x
-            const posX = t2 * 3.4; // Slides to the right half
+            const scale = 1.2 + t2 * 0.45;
+            const posX = t2 * 3.4;
             ballMesh.scale.set(scale, scale, scale);
             ballMesh.position.set(posX, 0.2 + ambientFloat, 0);
             ballMesh.rotation.y = 0.6 + t2 * 1.4;
@@ -334,9 +346,8 @@ export default function AppleShowcase({ onPhaseChange }) {
             camera.position.set(0, 0, 12.0 - t2 * 1.5);
             shadowMesh.position.set(posX, -ballRadius * scale - 0.1, 0);
           } else if (p <= 0.75) {
-            // STEP 3: Ball stays on RIGHT, camera orbits side view, 3 bullets on LEFT
             const t3 = (p - 0.50) / 0.25;
-            const scale = 1.65 - t3 * 0.35; // 1.3x
+            const scale = 1.65 - t3 * 0.35;
             const posX = 3.4 + t3 * 0.4;
             ballMesh.scale.set(scale, scale, scale);
             ballMesh.position.set(posX, 0.2 + ambientFloat, 0);
@@ -345,9 +356,8 @@ export default function AppleShowcase({ onPhaseChange }) {
             camera.position.set(0, 0, 10.5 + t3 * 1.8);
             shadowMesh.position.set(posX, -ballRadius * scale - 0.1, 0);
           } else {
-            // STEP 4: Ball pulls back & shrinks to corner for transition
             const t4 = (p - 0.75) / 0.25;
-            const scale = 1.3 - t4 * 0.75; // 0.55x
+            const scale = 1.3 - t4 * 0.75;
             const posX = 3.8 + t4 * 3.0;
             const posY = 0.2 - t4 * 2.8;
             ballMesh.scale.set(scale, scale, scale);
@@ -357,9 +367,97 @@ export default function AppleShowcase({ onPhaseChange }) {
             shadowMesh.position.set(posX, posY - ballRadius * scale - 0.1, -t4 * 2.5);
           }
         }
+
+        renderer.render(scene, camera);
       }
 
-      renderer.render(scene, camera);
+      // 2. DIRECT DOM MANIPULATION FOR TEXT SLIDES (ZERO REACT OVERHEAD)
+      // Step 1: 0.00 -> 0.22
+      if (step1Ref.current) {
+        let op1 = 1;
+        let y1 = 0;
+        if (p > 0.16) {
+          const f = Math.min((p - 0.16) / 0.07, 1);
+          op1 = 1 - f;
+          y1 = -f * 32;
+        }
+        step1Ref.current.style.opacity = op1.toFixed(3);
+        step1Ref.current.style.transform = `translate3d(0, ${y1.toFixed(1)}px, 0)`;
+        step1Ref.current.style.pointerEvents = op1 > 0.3 ? 'auto' : 'none';
+      }
+
+      // Step 2: 0.22 -> 0.48
+      if (step2Ref.current) {
+        let op2 = 0;
+        let x2 = -28;
+        if (p >= 0.20 && p <= 0.48) {
+          if (p < 0.26) {
+            const f = (p - 0.20) / 0.06;
+            op2 = f;
+            x2 = (1 - f) * -28;
+          } else if (p > 0.42) {
+            const f = (p - 0.42) / 0.06;
+            op2 = 1 - f;
+            x2 = -f * 28;
+          } else {
+            op2 = 1;
+            x2 = 0;
+          }
+        }
+        step2Ref.current.style.opacity = op2.toFixed(3);
+        step2Ref.current.style.transform = `translate3d(${x2.toFixed(1)}px, 0, 0)`;
+        step2Ref.current.style.pointerEvents = op2 > 0.3 ? 'auto' : 'none';
+      }
+
+      // Step 3: 0.48 -> 0.74
+      if (step3Ref.current) {
+        let op3 = 0;
+        let x3 = -28;
+        if (p >= 0.46 && p <= 0.74) {
+          if (p < 0.52) {
+            const f = (p - 0.46) / 0.06;
+            op3 = f;
+            x3 = (1 - f) * -28;
+          } else if (p > 0.68) {
+            const f = (p - 0.68) / 0.06;
+            op3 = 1 - f;
+            x3 = -f * 28;
+          } else {
+            op3 = 1;
+            x3 = 0;
+          }
+        }
+        step3Ref.current.style.opacity = op3.toFixed(3);
+        step3Ref.current.style.transform = `translate3d(${x3.toFixed(1)}px, 0, 0)`;
+        step3Ref.current.style.pointerEvents = op3 > 0.3 ? 'auto' : 'none';
+      }
+
+      // Step 4: 0.74 -> 1.00
+      if (step4Ref.current) {
+        let op4 = 0;
+        let y4 = 28;
+        if (p >= 0.72) {
+          const f = Math.min((p - 0.72) / 0.08, 1);
+          op4 = f;
+          y4 = (1 - f) * 28;
+        }
+        step4Ref.current.style.opacity = op4.toFixed(3);
+        step4Ref.current.style.transform = `translate3d(0, ${y4.toFixed(1)}px, 0)`;
+        step4Ref.current.style.pointerEvents = op4 > 0.3 ? 'auto' : 'none';
+      }
+
+      // Progress dots indicator
+      const activeIdx = p > 0.72 ? 3 : p > 0.46 ? 2 : p > 0.20 ? 1 : 0;
+      dotsRef.current.forEach((dot, idx) => {
+        if (!dot) return;
+        if (idx === activeIdx) {
+          dot.style.width = '24px';
+          dot.style.backgroundColor = '#D6B36A';
+        } else {
+          dot.style.width = '6px';
+          dot.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+        }
+      });
     };
 
     render();
@@ -377,7 +475,7 @@ export default function AppleShowcase({ onPhaseChange }) {
       shadowMat.dispose();
       renderer.dispose();
     };
-  }, [prefersReduced]);
+  }, []);
 
   return (
     <section
@@ -408,16 +506,15 @@ export default function AppleShowcase({ onPhaseChange }) {
         {/* WebGL Canvas Mount */}
         <div ref={canvasMountRef} className="absolute inset-0 z-0 pointer-events-none" />
 
-        {/* ── HTML TEXT OVERLAYS: Placed in Dedicated Safe Zones ── */}
+        {/* ── HTML TEXT OVERLAYS: GPU Accelerated Direct Styles ── */}
         <div className="relative z-20 w-full max-w-7xl mx-auto px-6 lg:px-12 pointer-events-none h-full flex flex-col justify-between py-24">
           
-          {/* STEP 1 TEXT (0.00 - 0.22): Positioned in UPPER Half — Ball is in LOWER Half! */}
+          {/* STEP 1 TEXT (Upper Half) */}
           <div
-            className={`transition-all duration-500 flex flex-col items-center text-center max-w-3xl mx-auto pt-6 sm:pt-10 ${
-              scrollProgress < 0.22 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8 pointer-events-none'
-            }`}
+            ref={step1Ref}
+            style={{ willChange: 'transform, opacity' }}
+            className="flex flex-col items-center text-center max-w-3xl mx-auto pt-6 sm:pt-10 transition-none"
           >
-            {/* Dark glass backdrop to guarantee 100% readability */}
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/85 backdrop-blur-xl border border-white/12 shadow-2xl space-y-3">
               <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-wider text-gold">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -436,13 +533,11 @@ export default function AppleShowcase({ onPhaseChange }) {
             </div>
           </div>
 
-          {/* STEP 2 TEXT (0.22 - 0.48): Positioned on LEFT — Ball is on RIGHT! */}
+          {/* STEP 2 TEXT (Left Half) */}
           <div
-            className={`my-auto max-w-lg transition-all duration-500 ${
-              scrollProgress >= 0.22 && scrollProgress < 0.48
-                ? 'opacity-100 translate-x-0'
-                : 'opacity-0 -translate-x-8 pointer-events-none'
-            }`}
+            ref={step2Ref}
+            style={{ willChange: 'transform, opacity', opacity: 0 }}
+            className="my-auto max-w-lg transition-none"
           >
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-4">
               <span className="text-xs font-bold uppercase tracking-widest text-gold font-mono">
@@ -464,13 +559,11 @@ export default function AppleShowcase({ onPhaseChange }) {
             </div>
           </div>
 
-          {/* STEP 3 TEXT (0.48 - 0.74): Positioned on LEFT — Ball is on RIGHT! */}
+          {/* STEP 3 TEXT (Left Half) */}
           <div
-            className={`my-auto max-w-lg transition-all duration-500 ${
-              scrollProgress >= 0.48 && scrollProgress < 0.74
-                ? 'opacity-100 translate-x-0'
-                : 'opacity-0 -translate-x-8 pointer-events-none'
-            }`}
+            ref={step3Ref}
+            style={{ willChange: 'transform, opacity', opacity: 0 }}
+            className="my-auto max-w-lg transition-none"
           >
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-5">
               <div className="space-y-1">
@@ -483,7 +576,6 @@ export default function AppleShowcase({ onPhaseChange }) {
                 </h2>
               </div>
 
-              {/* 3 Clear Bullet Points */}
               <div className="space-y-3 pt-1">
                 <div className="flex items-start space-x-3">
                   <div className="w-5 h-5 rounded-full bg-gold/15 border border-gold/30 flex items-center justify-center shrink-0 mt-0.5">
@@ -518,13 +610,11 @@ export default function AppleShowcase({ onPhaseChange }) {
             </div>
           </div>
 
-          {/* STEP 4 TEXT (0.74 - 1.00): Transition Call to Projects */}
+          {/* STEP 4 TEXT (Transition to Projects) */}
           <div
-            className={`my-auto max-w-lg transition-all duration-500 ${
-              scrollProgress >= 0.74
-                ? 'opacity-100 translate-y-0'
-                : 'opacity-0 translate-y-8 pointer-events-none'
-            }`}
+            ref={step4Ref}
+            style={{ willChange: 'transform, opacity', opacity: 0 }}
+            className="my-auto max-w-lg transition-none"
           >
             <div className="p-6 sm:p-8 rounded-3xl bg-[#0A0F1E]/90 backdrop-blur-xl border border-white/15 shadow-2xl space-y-4">
               <span className="text-xs font-bold uppercase tracking-widest text-gold font-mono">
@@ -553,12 +643,15 @@ export default function AppleShowcase({ onPhaseChange }) {
 
         {/* Sequence Progress Dots */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-2.5 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-          {[1, 2, 3, 4].map((step) => (
+          {[0, 1, 2, 3].map((idx) => (
             <span
-              key={step}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                currentStep === step ? 'w-6 bg-gold' : 'w-1.5 bg-white/20'
-              }`}
+              key={idx}
+              ref={(el) => (dotsRef.current[idx] = el)}
+              className="h-1.5 rounded-full transition-all duration-300"
+              style={{
+                width: idx === 0 ? '24px' : '6px',
+                backgroundColor: idx === 0 ? '#D6B36A' : 'rgba(255, 255, 255, 0.25)',
+              }}
             />
           ))}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
@@ -31,15 +31,27 @@ export default function Home() {
 
   // Switch between Apple Product Bar (during showcase) and Main Navbar (during portfolio)
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      const showcaseHeight = window.innerHeight * 3.2;
-      const isStillInShowcase = window.scrollY < showcaseHeight;
-      setInShowcase(isStillInShowcase);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const showcaseHeight = window.innerHeight * 3.2;
+          const isStillIn = window.scrollY < showcaseHeight;
+          setInShowcase((prev) => (prev !== isStillIn ? isStillIn : prev));
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handlePhaseChange = useCallback((step) => {
+    setShowcaseStep((prev) => (prev !== step ? step : prev));
   }, []);
 
   return (
@@ -69,7 +81,7 @@ export default function Home() {
 
         {/* ── Apple-Style Scroll-Driven Product Showcase Section ── */}
         {mounted && (
-          <AppleShowcase onPhaseChange={(step) => setShowcaseStep(step)} />
+          <AppleShowcase onPhaseChange={handlePhaseChange} />
         )}
 
         {/* ── Core Portfolio Sections ── */}
