@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   Bernabéu Night Cinematic Design Tokens
+   Dark theme: Deep midnight navy #0A0F1E to #111A33, Glass cards
+   Accents: Champagne Gold #D6B36A, Soft Electric Blue #4C7DFF
+   Text: #F4F1EA Primary, #B9BED0 Secondary
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg-gradient-start: #F7F4EC;
+  --bg-gradient-end: #EDE8DD;
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --border-glass: rgba(14, 22, 48, 0.10);
+  --text-primary: #0E1630;
+  --text-secondary: #455173;
+  --accent-gold: #D6B36A;
+  --accent-gold-dark: #A88536;
+  --accent-blue: #4C7DFF;
+}
+
+.dark {
+  --bg-gradient-start: #0A0F1E;
+  --bg-gradient-end: #111A33;
+  --surface-glass: rgba(255, 255, 255, 0.05);
+  --border-glass: rgba(255, 255, 255, 0.10);
+  --text-primary: #F4F1EA;
+  --text-secondary: #B9BED0;
+  --accent-gold: #D6B36A;
+  --accent-gold-dark: #E5C888;
+  --accent-blue: #4C7DFF;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 16px;
+  }
+
+  body {
+    transition: background-color 0.4s ease, color 0.4s ease;
+    background: linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  .dark body {
+    background: linear-gradient(180deg, #0A0F1E 0%, #111A33 100%);
+    background-attachment: fixed;
+    color: #F4F1EA;
+  }
+}
+
+/* ── Custom Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(214, 179, 106, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D6B36A;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #D6B36A;
+}
+
+/* ── Cinematic Glass Surfaces ────────────────────────────────── */
+.glass-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.dark .glass-card:hover {
+  border-color: rgba(214, 179, 106, 0.35);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Animated Rotating Conic Gold Border ─────────────────────── */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spinConic {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.conic-gold-card {
+  position: relative;
+  border-radius: 1.5rem;
+}
+
+.conic-gold-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(from var(--angle), transparent 20%, #D6B36A 50%, #4C7DFF 75%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spinConic 8s linear infinite;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* ── Animated Gold Shimmer Sweep on Text ─────────────────────── */
+.gold-shimmer-sweep {
+  background: linear-gradient(
+    90deg,
+    #D6B36A 0%,
+    #FFF4D6 25%,
+    #D6B36A 50%,
+    #A88536 75%,
+    #D6B36A 100%
+  );
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmerGold 4s linear infinite;
+}
+
+@keyframes shimmerGold {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+/* ── High Contrast Gradient Text ─────────────────────────────── */
+.text-gradient-primary {
+  background: linear-gradient(135deg, #0E1630 0%, #D6B36A 50%, #4C7DFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .text-gradient-primary {
+  background: linear-gradient(135deg, #F4F1EA 0%, #E5C888 50%, #7099FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Film Grain Overlay (SVG noise) ──────────────────────────── */
+.film-grain {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* ── Button Shine Sweep ──────────────────────────────────────── */
+.btn-shine-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine-sweep::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  transition: all 0.6s ease;
+  pointer-events: none;
+}
+
+.btn-shine-sweep:hover::after {
+  left: 130%;
+}
+
+/* ── Accessibility ───────────────────────────────────────────── */
+a:focus-visible, button:focus-visible {
+  outline: 2px solid #D6B36A;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
